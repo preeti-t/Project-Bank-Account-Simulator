@@ -1,41 +1,37 @@
 package com.bank.service;
 
-import com.bank.dao.AccountDAO;
-import com.bank.util.DBConnection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.bank.entity.BankAccount;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import com.bank.config.HibernateUtil;
 
-import java.sql.Connection;
+import java.math.BigDecimal;
 
 public class AccountService {
 
-    private static final Logger logger = LoggerFactory.getLogger(AccountService.class);
-    private AccountDAO dao = new AccountDAO();
+    SessionFactory factory = HibernateUtil.getSessionFactory();
 
-    public void transfer(int fromId, int toId, double amount) {
+    public void deposit(Long id, BigDecimal amount) {
 
-        try (Connection conn = DBConnection.getConnection()) {
+        Session session = factory.openSession();
+        session.beginTransaction();
 
-            conn.setAutoCommit(false); //  it starts transaction
+        BankAccount acc = session.get(BankAccount.class, id);
+        acc.setBalance(acc.getBalance().add(amount));
 
-            double fromBalance = dao.getBalance(fromId, conn);
+        session.getTransaction().commit();
+        session.close();
+    }
 
-            if (fromBalance < amount) {
-                throw new RuntimeException("Insufficient funds");
-            }
+    public void withdraw(Long id, BigDecimal amount) {
 
-            double toBalance = dao.getBalance(toId, conn);
+        Session session = factory.openSession();
+        session.beginTransaction();
 
-            dao.updateBalance(fromId, fromBalance - amount, conn);
-            dao.updateBalance(toId, toBalance + amount, conn);
+        BankAccount acc = session.get(BankAccount.class, id);
+        acc.setBalance(acc.getBalance().subtract(amount));
 
-            conn.commit(); // success
-
-            logger.info("Transfer successful: {} -> {} amount {}", fromId, toId, amount);
-
-        } catch (Exception e) {
-            logger.error("Transaction failed: {}", e.getMessage());
-            e.printStackTrace();
-        }
+        session.getTransaction().commit();
+        session.close();
     }
 }
