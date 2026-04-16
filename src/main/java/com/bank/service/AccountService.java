@@ -1,41 +1,46 @@
 package com.bank.service;
 
-import com.bank.dao.AccountDAO;
-import com.bank.util.DBConnection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.bank.dao.BankAccountDAO;
+import com.bank.entity.BankAccount;
 
-import java.sql.Connection;
+import java.math.BigDecimal;
 
 public class AccountService {
 
-    private static final Logger logger = LoggerFactory.getLogger(AccountService.class);
-    private AccountDAO dao = new AccountDAO();
+    private BankAccountDAO dao = new BankAccountDAO();
 
-    public void transfer(int fromId, int toId, double amount) {
+    // CREATE ACCOUNT
+    public void createAccount(BankAccount acc) {
+        dao.save(acc);
+    }
 
-        try (Connection conn = DBConnection.getConnection()) {
+    // VIEW ALL
+    public void showAll() {
+        for (BankAccount a : dao.getAll()) {
+            System.out.println(a.getId() + " | " + a.getName() + " | " + a.getBalance());
+        }
+    }
 
-            conn.setAutoCommit(false); //  it starts transaction
+    // DEPOSIT
+    public void deposit(Long id, BigDecimal amount) {
 
-            double fromBalance = dao.getBalance(fromId, conn);
+        BankAccount acc = dao.getById(id);
 
-            if (fromBalance < amount) {
-                throw new RuntimeException("Insufficient funds");
-            }
+        acc.setBalance(acc.getBalance().add(amount));
 
-            double toBalance = dao.getBalance(toId, conn);
+        dao.save(acc); // update via persist/merge logic
+    }
 
-            dao.updateBalance(fromId, fromBalance - amount, conn);
-            dao.updateBalance(toId, toBalance + amount, conn);
+    // WITHDRAW
+    public void withdraw(Long id, BigDecimal amount) {
 
-            conn.commit(); // success
+        BankAccount acc = dao.getById(id);
 
-            logger.info("Transfer successful: {} -> {} amount {}", fromId, toId, amount);
-
-        } catch (Exception e) {
-            logger.error("Transaction failed: {}", e.getMessage());
-            e.printStackTrace();
+        if (acc.getBalance().compareTo(amount) >= 0) {
+            acc.setBalance(acc.getBalance().subtract(amount));
+            dao.save(acc);
+        } else {
+            System.out.println("Insufficient balance!");
         }
     }
 }
